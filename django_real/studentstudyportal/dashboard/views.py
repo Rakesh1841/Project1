@@ -244,25 +244,35 @@ def dictionary(request):
         return render(request, 'dictionary.html', context)
 
 
-def wiki(request):
-    if request.method=='POST':
-        text =request.POST['text']
-        form = DashboardForms(request.POST)
-        search = wikipedia.page(text)
-        context ={
-            'form':form,
-            'title':search.title,
-            'link':search.url,
-            'details':search.summary
-            }
+  # Import your form class
 
-        return render(request,'wiki.html',context)
+def wiki(request):
+    form = DashboardForms()  # Initialize the form
+
+    if request.method == 'POST':
+        form = DashboardForms(request.POST)  # Bind form data to request data
+
+        if form.is_valid():
+            text = form.cleaned_data['text']  # Get cleaned data from the form
+            try:
+                search = wikipedia.page(text)
+                context = {
+                    'form': form,
+                    'title': search.title,
+                    'link': search.url,
+                    'details': search.summary
+                }
+            except wikipedia.exceptions.PageError:
+                # Handle PageError (e.g., page not found)
+                context = {'form': form, 'error': 'Page not found'}
+            except wikipedia.exceptions.DisambiguationError as e:
+                # Handle DisambiguationError (e.g., multiple pages found)
+                context = {'form': form, 'error': str(e)}
     else:
-        form = DashboardForms()
-    context = {
-        'form': form
-    }
-    return render(request, 'wiki.html',context)
+        context = {'form': form}
+
+    return render(request, 'wiki.html', context)
+
 
 
 def conversion(request):
@@ -326,5 +336,39 @@ def conversion(request):
     return render(request, "conversion.html", context)
 
 
+def register(request):
+    if request.method == 'POST':
+        form = UserRegistrationForm(request.POST)
+        if form.is_valid():
+            form.save()
+            username = form.cleaned_data.get('username')
+            messages.success(request, f'Account created for user: {username}!')
+            return redirect('login')  # Redirect to success page or home
+    else:
+        form = UserRegistrationForm()
+    context = {
+        'form': form,
+    }
+    return render(request, 'register.html', context)
 
-def userregistration
+
+
+def profile(request):
+    homeworks = Homework.objects.filter(is_finished=False, user=request.user)
+    todos = Todo.objects.filter(is_finished=False, user=request.user)
+    if len(homeworks) == 0:
+        homework_done = True
+    else:
+        homework_done = False
+    if len(todos) == 0:
+        todo_done = True
+    else:
+        todo_done = False
+    context ={
+        'homeworks' : homeworks,
+        'todos' : todos,
+        'homework_done' : homework_done,
+        'todo_done' :  todo_done
+    }
+
+    return render(request, 'profile.html',context)
